@@ -1,0 +1,269 @@
+-- Art Gallery Business Questions
+-- 1 Artist whose artwork are displayed in multiple countries
+SELECT a.artist_id, a.full_name, COUNT(mu.country) AS MOSTCOUNTRY
+FROM artist AS a
+JOIN 
+working AS wo
+ON
+a.artist_id = wo.artist_id
+JOIN
+museum AS mu 
+ON 
+wo.museum_id = mu.museum_id
+GROUP BY a.artist_id, a.full_name
+ORDER BY MOSTCOUNTRY DESC; 
+
+-- 2 Top 10 most popular theme of artwork
+SELECT subjectss, COUNT(*) as theme_count
+FROM subjects
+GROUP BY subjectss
+ORDER BY theme_count DESC
+LIMIT 10;
+
+
+-- 3 Artwork with a selling price less than half of their listed price
+SELECT w.namess, ps.sale_price, ps.regular_price
+FROM product_size AS ps
+JOIN
+working AS w
+ON
+ps.work_id = w.work_id
+WHERE sale_price < (regular_price / 2);
+
+-- 4 Remove Duplicate entries from the artwork, product_dimension, theme and images table
+DELETE FROM working 
+WHERE work_id IN (
+SELECT work_id
+FROM (
+SELECT work_id
+FROM  working
+GROUP BY work_id, namess, artist_id, style, museum_id
+HAVING COUNT(*) > 1
+) AS tmp
+);
+
+DELETE FROM subjects 
+WHERE work_id IN (
+SELECT work_id
+FROM (
+SELECT work_id
+FROM  subjects
+GROUP BY work_id, subjectss
+HAVING COUNT(*) > 1
+) AS tmp
+);
+
+DELETE FROM image_link 
+WHERE work_id IN (
+SELECT work_id
+FROM (
+SELECT work_id
+FROM  image_link
+GROUP BY work_id, url, thumbnail_small_url, thumbnail_large_url
+HAVING COUNT(*) > 1
+) AS tmp
+);
+
+-- 5 Galleries opened on both saturday and sunday
+SELECT mu.namess, mu.city, mh.day
+FROM museum AS mu
+JOIN
+museum_hours AS mh
+ON
+mu.museum_id = mh.museum_id
+WHERE day in ('Saturday','Sunday')
+GROUP BY mu.namess, mu.city, mh.day
+ORDER BY mh.day;
+
+-- 6 galleries opened everyday of the week
+SELECT mu.namess, mh.day
+FROM museum AS mu
+JOIN museum_hours AS mh ON mu.museum_id = mh.museum_id
+WHERE mh.day IN ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+GROUP BY mu.namess, mh.day;
+
+-- 7 canvas size has the highest cost
+SELECT label, MAX(sale_price) AS highestcost
+FROM product_size AS ps
+JOIN
+canvas_size AS cs
+ON
+ps.size_id = cs.size_id
+GROUP BY label
+ORDER BY highestcost DESC
+LIMIT 1;
+
+-- 8 galleries that don't have artwork on display
+SELECT m.namess, m.museum_id, wo.museum_id
+FROM museum AS m
+LEFT JOIN 
+working AS wo
+ON
+m.museum_id = wo.museum_id
+WHERE wo.museum_id IS NULL
+ORDER BY m.namess;
+
+-- 9 incorrect city information
+SELECT namess, city
+FROM museum 
+WHERE city not like '(a-z)%';
+
+-- 10 Gallery with the highest number of artworks in the most popular style
+SELECT m.namess, wo.style, COUNT(wo.style) AS popularpaintngstyle
+FROM working AS wo
+JOIN
+museum AS m
+ON
+wo.museum_id = m.museum_id
+GROUP BY m.namess, wo.style
+ORDER BY popularpaintngstyle DESC
+LIMIT 1;
+
+-- 11 Top 5 most visited galleries
+SELECT m.namess, COUNT(wo.namess) AS popularpainting
+FROM working AS wo
+JOIN
+museum AS m
+ON wo.museum_id = m.museum_id
+GROUP BY m.namess
+ORDER BY popularpainting DESC
+LIMIT 5;
+
+-- 12 How many artworks have a selling price higher than their listed price?
+SELECT w.namess, ps.sale_price, ps.regular_price
+FROM product_size AS ps
+JOIN
+working AS w
+ON
+ps.work_id = w.work_id
+WHERE sale_price > (regular_price);
+
+-- 13 The Gallery_Hours table has one invalid entry. Identify and delete it.
+SELECT *
+FROM museum_hours;
+UPDATE museum_hours
+SET day = REPLACE(day, 'Thusday', 'Thursday');
+
+-- 14 the 3 least common canvas sizes.
+SELECT *
+FROM canvas_size
+ORDER BY label 
+LIMIT 3;
+
+--  15 top 5 most prolific artists
+SELECT a.full_name, COUNT(wo.namess) AS artwork_count
+FROM working AS wo
+JOIN 
+artist AS a 
+ON 
+wo.artist_id = a.artist_id
+GROUP BY wo.namess, a.full_name
+ORDER BY artwork_count DESC
+LIMIT 5;
+
+-- 16 Which gallery is open the longest each day? Display gallery name, state, hours open, and which day. 
+SELECT m.museum_id, m.namess, m.state, TIMEDIFF(STR_TO_DATE(close, '%h:%i:%p'), STR_TO_DATE(open, '%h:%i:%p')) as hours_open, mh.day
+FROM museum AS m
+JOIN 
+museum_hours AS mh 
+ON 
+m.museum_id = mh.museum_id
+ORDER BY hours_open DESC
+LIMIT 1;
+
+-- 17 List all the artworks that are not currently exhibited in any galleries.
+SELECT DISTINCT namess
+FROM working
+WHERE museum_id IS NULL;
+
+--  18 Which country has the fifth-highest number of artworks
+   SELECT m.country, COUNT(wo.namess) AS artwork_count
+FROM  museum AS m 
+JOIN 
+working AS wo
+ON 
+m.museum_id = wo.museum_id
+GROUP BY m.country
+ORDER BY artwork_count DESC
+LIMIT 1 OFFSET 4;
+
+-- 19 Which are the 3 most popular and 3 least popular styles of artwork?
+SELECT style, COUNT(*) AS count
+FROM working
+GROUP BY style
+ORDER BY count DESC
+LIMIT 3;
+
+SELECT style, COUNT(*) AS count
+FROM working
+GROUP BY style
+ORDER BY count ASC
+LIMIT 3;
+
+-- 20 the country and city with the highest number of galleries
+SELECT country, city, COUNT(namess) AS mostnumberofmuseum
+FROM museum 
+GROUP BY country, city
+HAVING COUNT(namess) > 1
+ORDER BY mostnumberofmuseum DESC;
+
+--  21 Identify the artist and gallery with the highest and lowest priced artwork.
+SELECT a.full_name, max(ps.sale_price) AS price, wo.namess, m.namess,  m.city, cs.label
+FROM  working AS wo 
+JOIN 
+museum AS m
+ON 
+wo.museum_id = m.museum_id
+JOIN  
+artist AS a
+ON 
+wo.artist_id = a.artist_id
+JOIN 
+product_size AS ps
+ON 
+wo.work_id = ps.work_id
+JOIN 
+canvas_size AS cs
+ON 
+ps.size_id = cs.size_id
+GROUP BY a.full_name, ps.sale_price, wo.namess, m.namess, m.city, cs.label
+ORDER BY price DESC
+LIMIT 1;
+
+SELECT a.full_name, max(ps.sale_price) AS price, wo.namess, m.namess,  m.city, cs.label
+FROM  working AS wo 
+JOIN 
+museum AS m
+ON 
+wo.museum_id = m.museum_id
+JOIN  
+artist AS a
+ON 
+wo.artist_id = a.artist_id
+JOIN 
+product_size AS ps
+ON 
+wo.work_id = ps.work_id
+JOIN 
+canvas_size AS cs
+ON 
+ps.size_id = cs.size_id
+GROUP BY a.full_name, ps.sale_price, wo.namess, m.namess, m.city, cs.label
+ORDER BY price ASC
+LIMIT 1;
+
+-- 22. Which artist has the most Portraits artworks outside the USA? Display artist name, number of artworks, and artist nationality.
+SELECT wo.artist_id, a.full_name, COUNT(wo.namess) AS artwork_count, a.nationality
+FROM working AS wo
+JOIN 
+artist AS a 
+ON 
+wo.artist_id = a.artist_id
+JOIN 
+museum AS m 
+ON 
+wo.museum_id = m.museum_id
+WHERE a.style = 'Portraitist' AND m.country != 'USA'
+GROUP BY wo.artist_id, a.full_name, a.nationality
+ORDER BY artwork_count DESC
+LIMIT 2; 
